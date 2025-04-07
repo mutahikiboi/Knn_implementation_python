@@ -1,0 +1,72 @@
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.datasets import load_iris
+from collections import Counter
+from sklearn.metrics import confusion_matrix
+
+# Load the iris dataset
+iris = load_iris()
+df = pd.DataFrame(data=np.c_[iris['data'], iris['target']],
+                  columns=iris['feature_names'] + ['target'])
+df['species'] = pd.Categorical.from_codes(iris.target, iris.target_names)
+
+# Visualizing the data
+plt.figure(figsize=(8, 6))
+for species in df['species'].unique():
+    subset = df[df['species'] == species]
+    plt.scatter(subset['sepal length (cm)']/subset['sepal width (cm)'],
+                subset['petal length (cm)']/subset['petal width (cm)'],
+                label=species)
+plt.title('Iris Data')
+plt.xlabel('Sepal Proportion')
+plt.ylabel('Petal Proportion')
+plt.legend()
+plt.show()
+
+# Create test and train data
+np.random.seed(42)
+train_index = np.random.choice(df.index, size=int(0.8*len(df)), replace=False)
+test_index = np.setdiff1d(df.index, train_index)
+
+x_train = df.loc[train_index, iris['feature_names']]
+y_train = df.loc[train_index, 'species']
+x_test = df.loc[test_index, iris['feature_names']]
+y_test = df.loc[test_index, 'species']
+
+print(x_train.head())
+print(x_train.shape, x_test.shape, len(y_train))
+
+# Function to calculate Euclidean distance
+def euclidean_distance(p, q):
+    return np.sqrt(np.sum((p - q)**2))
+
+# Calculate distances for first test observation
+first_test = x_test.iloc[0]
+distances = [euclidean_distance(first_test, x_train.iloc[i]) for i in range(len(x_train))]
+print(distances[:6])  # Show first 6 distances
+
+# Find 3 nearest neighbors
+k = 3
+nearest_indices = np.argsort(distances)[:k]
+nearest_species = y_train.iloc[nearest_indices]
+print(nearest_species)
+
+# Predict the species
+prediction = Counter(nearest_species).most_common(1)[0][0]
+print(f"Prediction: {prediction}, Actual: {y_test.iloc[0]}")
+
+# KNN function
+def knn_predict(x, x_train, y_train, k=5):
+    distances = [euclidean_distance(x, x_train.iloc[i]) for i in range(len(x_train))]
+    nearest_indices = np.argsort(distances)[:k]
+    nearest_species = y_train.iloc[nearest_indices]
+    return Counter(nearest_species).most_common(1)[0][0]
+
+# Apply KNN to all test data
+predictions = [knn_predict(x_test.iloc[i], x_train, y_train, k=5) for i in range(len(x_test))]
+print(predictions[:6])  # Show first 6 predictions
+
+# Confusion matrix
+print("\nConfusion Matrix:")
+print(confusion_matrix(y_test, predictions))
